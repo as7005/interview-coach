@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "interview-coach",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Serve the chat frontend from Pages-style static assets.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // LLM (Llama 3.3) + Whisper (STT) + TTS all run through Workers AI.
+  "ai": {
+    "binding": "AI"
+  },
+
+  // The Agent (InterviewCoachAgent) is a Durable Object under the hood.
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "InterviewCoachAgent",
+        "class_name": "InterviewCoachAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["InterviewCoachAgent"]
+    }
+  ],
+
+  // Long-term cross-session memory (weak areas, question history).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "interview_coach_db",
+      "database_id": "84220d75-8d8e-462d-aad4-5745611743cb"
+    }
+  ],
+
+  // Orchestrates a single interview run (multi-step, retry-safe).
+  "workflows": [
+    {
+      "name": "interview-run",
+      "binding": "INTERVIEW_WORKFLOW",
+      "class_name": "InterviewRunWorkflow"
+    }
+  ]
+}

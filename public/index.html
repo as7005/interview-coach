@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coach — mock interview practice</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500&display=swap');
+
+  :root {
+    --ink: #1b2129;
+    --paper: #f6f4ef;
+    --brass: #a9822f;
+    --line: #d8d3c6;
+    --muted: #6b6459;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  main {
+    width: 100%;
+    max-width: 640px;
+    padding: 48px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 28px;
+    margin: 0 0 4px;
+  }
+
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+
+  .setup {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  input, select, button {
+    font-family: inherit;
+    font-size: 14px;
+  }
+
+  input[type="text"], select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    background: white;
+    border-radius: 4px;
+  }
+
+  button {
+    padding: 10px 16px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  #transcript {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .msg { max-width: 85%; line-height: 1.5; font-size: 15px; }
+  .msg.coach { align-self: flex-start; }
+  .msg.candidate { align-self: flex-end; text-align: right; }
+  .msg .role {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .msg.coach .bubble {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 4px 12px 12px 12px;
+    padding: 10px 14px;
+  }
+  .msg.candidate .bubble {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 12px 4px 12px 12px;
+    padding: 10px 14px;
+    display: inline-block;
+  }
+
+  .composer {
+    display: flex;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    margin-top: 16px;
+  }
+
+  .score-badge {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--brass);
+    margin-top: 4px;
+  }
+
+  #micBtn {
+    background: white;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 10px 14px;
+  }
+  #micBtn.recording {
+    background: #b3402f;
+    color: white;
+    border-color: #b3402f;
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .progress-label {
+    width: 140px;
+    flex-shrink: 0;
+    color: var(--ink);
+  }
+  .progress-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--brass);
+  }
+  .progress-score {
+    width: 60px;
+    flex-shrink: 0;
+    text-align: right;
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mock interview coach</h1>
+  <p class="sub">Practice out loud. It remembers what trips you up and comes back to it.</p>
+
+  <div class="setup" id="setup">
+    <input type="text" id="userId" placeholder="Your name or email" />
+    <select id="topic">
+      <option value="system-design">System design</option>
+      <option value="behavioral">Behavioral</option>
+      <option value="frontend">Frontend engineering</option>
+    </select>
+    <button id="startBtn">Start</button>
+  </div>
+
+  <div id="progressPanel" style="display:none; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line);">
+    <div style="font-size: 12px; letter-spacing: 0.02em; color: var(--muted); margin-bottom: 8px;">YOUR PROGRESS (ACROSS SESSIONS)</div>
+    <div id="progressList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+  </div>
+
+  <div id="transcript"></div>
+
+  <div class="composer" id="composer" style="display:none">
+    <input type="text" id="answerInput" placeholder="Type your answer..." />
+    <button id="micBtn" title="Record a spoken answer">🎤</button>
+    <button id="sendBtn">Send</button>
+  </div>
+  <audio id="ttsPlayer" style="display:none"></audio>
+</main>
+
+<script>
+  const transcriptEl = document.getElementById('transcript');
+  const setupEl = document.getElementById('setup');
+  const composerEl = document.getElementById('composer');
+  const ttsPlayer = document.getElementById('ttsPlayer');
+  const micBtn = document.getElementById('micBtn');
+
+  let sessionName = null;
+  let currentUserId = null;
+  let pollTimer = null;
+  let renderedCount = 0;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let lastSpokenCoachText = null;
+
+  async function loadProgress(userId) {
+    if (!userId) return;
+    try {
+      const res = await fetch(`/api/progress/${encodeURIComponent(userId)}`);
+      const data = await res.json();
+      const panel = document.getElementById('progressPanel');
+      const list = document.getElementById('progressList');
+
+      if (!data.topics || data.topics.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      list.innerHTML = '';
+      data.topics.forEach((t) => {
+        const pct = Math.round((t.avg_score / 5) * 100);
+        const row = document.createElement('div');
+        row.className = 'progress-row';
+        row.innerHTML = `
+          <span class="progress-label">${t.topic_area}</span>
+          <span class="progress-bar-bg"><span class="progress-bar-fill" style="width:${pct}%"></span></span>
+          <span class="progress-score">${t.avg_score.toFixed(1)}/5 (${t.attempts}x)</span>
+        `;
+        list.appendChild(row);
+      });
+      panel.style.display = 'block';
+    } catch (err) {
+      console.error('progress load failed', err);
+    }
+  }
+
+  document.getElementById('userId').addEventListener('blur', (e) => {
+    const val = e.target.value.trim();
+    if (val) loadProgress(val);
+  });
+
+  function renderTranscript(transcript) {
+    if (transcript.length === renderedCount) return;
+    transcriptEl.innerHTML = '';
+    transcript.forEach((m) => {
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${m.role}`;
+      wrap.innerHTML = `<span class="role">${m.role === 'coach' ? 'Coach' : 'You'}</span><span class="bubble">${m.text}</span>`;
+      transcriptEl.appendChild(wrap);
+    });
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    renderedCount = transcript.length;
+
+    const last = transcript[transcript.length - 1];
+    if (last && last.role === 'coach' && last.text !== lastSpokenCoachText) {
+      lastSpokenCoachText = last.text;
+      speakText(last.text);
+    }
+  }
+
+  async function speakText(text) {
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (data.audio) {
+        ttsPlayer.src = `data:audio/mp3;base64,${data.audio}`;
+        ttsPlayer.play().catch(() => {}); // browsers may block autoplay before first user gesture
+      }
+      // if data.audio is null, TTS failed server-side — transcript still has the text
+    } catch (err) {
+      console.error('tts failed', err);
+    }
+  }
+
+  async function pollState() {
+    if (!sessionName) return;
+    try {
+      const res = await fetch(`/api/session/${encodeURIComponent(sessionName)}/state`);
+      const state = await res.json();
+      renderTranscript(state.transcript || []);
+
+      if (state.status === 'finished') {
+        composerEl.style.display = 'none';
+        clearInterval(pollTimer);
+      }
+    } catch (err) {
+      console.error('poll failed', err);
+    }
+  }
+
+  document.getElementById('startBtn').addEventListener('click', async () => {
+    const userId = document.getElementById('userId').value.trim() || 'guest';
+    currentUserId = userId;
+    const topic = document.getElementById('topic').value;
+
+    const res = await fetch('/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, topic }),
+    });
+    const data = await res.json();
+    sessionName = data.sessionName;
+
+    setupEl.style.display = 'none';
+    composerEl.style.display = 'flex';
+
+    pollTimer = setInterval(pollState, 1500);
+    pollState();
+  });
+
+  document.getElementById('sendBtn').addEventListener('click', sendAnswer);
+  document.getElementById('answerInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendAnswer();
+  });
+
+  async function sendAnswer() {
+    const input = document.getElementById('answerInput');
+    const text = input.value.trim();
+    if (!text || !sessionName) return;
+    input.value = '';
+    await fetch(`/api/session/${encodeURIComponent(sessionName)}/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answerText: text }),
+    });
+    pollState();
+    setTimeout(() => loadProgress(currentUserId), 4000); // give the Workflow time to persist the score
+  }
+
+  // Voice input: hold-to-record via MediaRecorder, then upload the
+  // recorded audio to Whisper (STT) through /voice-answer.
+  micBtn.addEventListener('click', async () => {
+    if (!sessionName) return;
+
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          micBtn.classList.remove('recording');
+          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+          stream.getTracks().forEach((t) => t.stop());
+
+          micBtn.disabled = true;
+          try {
+            await fetch(`/api/session/${encodeURIComponent(sessionName)}/voice-answer`, {
+              method: 'POST',
+              body: blob,
+            });
+            pollState();
+            setTimeout(() => loadProgress(currentUserId), 4000);
+          } catch (err) {
+            console.error('voice answer failed', err);
+          } finally {
+            micBtn.disabled = false;
+          }
+        };
+
+        mediaRecorder.start();
+        micBtn.classList.add('recording');
+      } catch (err) {
+        alert('Microphone access is needed for voice answers.');
+      }
+    } else {
+      mediaRecorder.stop();
+    }
+  });
+</script>
+</body>
+</html>
