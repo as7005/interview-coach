@@ -1,1 +1,4 @@
-node_modules .wrangler .env *.log
+node_modules 
+.wrangler 
+.env 
+*.log
